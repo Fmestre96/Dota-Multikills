@@ -110,49 +110,18 @@ function processEvent(event, logDetails){
     let parsedEvent = JSON.parse(event)
     let type = parsedEvent.type
     let value = parsedEvent.value
-    let currentTime = parseFloat(parsedEvent.timestamp)
-    let attacker = parsedEvent.attacker_name
     let target = parsedEvent.target
-
-
+    
+    
     // GameStart
     if (type=="9" && value == "5"){
-        if(logDetails.maps[logDetails.mapNumber].gameStartTimestamp != currentTime){
-            logDetails.mapNumber ++
-            logDetails.maps[logDetails.mapNumber] = {
-                'numEvents': {},
-                'players':{},
-                'multikills':{},
-                'gameStartTimestamp':currentTime,
-            }   
-        }
-   
+        processGameStart(logDetails, parsedEvent)
+    }
+    else if(type=="4" && target.includes("hero")){
+        processPlayerDeath(logDetails, parsedEvent)
     }
     let currentMap = logDetails.mapNumber
-
-
-    if(type=="4" && target.includes("hero")){
-        
-        if (!Object.keys(logDetails.maps[currentMap].players).includes(attacker)){
-            logDetails.maps[currentMap].players[attacker] = {'kills':[], 'multikills':[], 'lastKill': 0, 'multikill':0}
-        }
-
-        let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
-        logDetails.maps[currentMap].players[attacker].kills.push(minute)
-
-        // Multikill happens here
-        if(currentTime - logDetails.maps[currentMap].players[attacker].lastKill <=17){
-            logDetails.maps[currentMap].players[attacker].multikill ++
-            if (attacker == "npc_dota_neutral_granite_golem"){console.log(parsedEvent)}
-            logDetails.maps[currentMap].players[attacker].multikills.push(minute)
-            logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + logDetails.maps[currentMap].players[attacker].multikill + "x multikill"
-            //console.log(currentMap + ": " + attacker.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[attacker].multikill)
-        }
-        else{
-            logDetails.maps[currentMap].players[attacker].multikill = 1
-        }
-        logDetails.maps[currentMap].players[attacker].lastKill = currentTime
-    }
+    //Event Counters here
     if(!logDetails.maps[currentMap].numEvents[type]){
         logDetails.maps[currentMap].numEvents[type] = {}
     }
@@ -173,7 +142,44 @@ function getMinute(timestamp){
     return `${minute}:${seconds}`
 }
 
+function processGameStart(logDetails, parsedEvent){
+    let currentTime = parseFloat(parsedEvent.timestamp)
+    if(logDetails.maps[logDetails.mapNumber].gameStartTimestamp != currentTime){
+        logDetails.mapNumber ++
+        logDetails.maps[logDetails.mapNumber] = {
+            'numEvents': {},
+            'players':{},
+            'multikills':{},
+            'gameStartTimestamp':currentTime,
+        }   
+    }
+}
 
+function processPlayerDeath(logDetails, parsedEvent){
+    let currentTime = parseFloat(parsedEvent.timestamp)
+    let attacker = parsedEvent.attacker_name
+    let currentMap = logDetails.mapNumber
+
+    if (!Object.keys(logDetails.maps[currentMap].players).includes(attacker)){
+        logDetails.maps[currentMap].players[attacker] = {'kills':[], 'multikills':[], 'lastKill': 0, 'multikill':0}
+    }
+
+    let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
+    logDetails.maps[currentMap].players[attacker].kills.push(minute)
+
+    // Multikill happens here
+    if(currentTime - logDetails.maps[currentMap].players[attacker].lastKill <=17){
+        logDetails.maps[currentMap].players[attacker].multikill ++
+        if (attacker == "npc_dota_neutral_granite_golem"){console.log(parsedEvent)}
+        logDetails.maps[currentMap].players[attacker].multikills.push(minute)
+        logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + logDetails.maps[currentMap].players[attacker].multikill + "x multikill"
+        //console.log(currentMap + ": " + attacker.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[attacker].multikill)
+    }
+    else{
+        logDetails.maps[currentMap].players[attacker].multikill = 1
+    }
+    logDetails.maps[currentMap].players[attacker].lastKill = currentTime
+}
 
 
 // Combat Log Data Types
