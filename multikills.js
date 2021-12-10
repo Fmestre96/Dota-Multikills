@@ -107,19 +107,31 @@ async function scanFile(file){
 
 
 function processEvent(event, logDetails){
+    
     let parsedEvent = JSON.parse(event)
-    let type = parsedEvent.type
-    let value = parsedEvent.value
-    let target = parsedEvent.target
 
     // GameStart
-    if (type=="9" && value == "5"){
+    if (parsedEvent.type=="9" && parsedEvent.value == "5"){
         processGameStart(logDetails, parsedEvent)
     }
     //Player Death
-    else if(type=="4" && target.includes("hero")){
-        processPlayerDeath(logDetails, parsedEvent)
+    // else if(parsedEvent.type=="4" && parsedEvent.target.includes("hero")){
+    //     processPlayerDeath(logDetails, parsedEvent)
+    // }
+
+    //Multikills
+    else if (parsedEvent.type=="15"){
+        processMultikills(logDetails, parsedEvent)
     }
+
+
+    // if (!['0','1','4'].includes(parsedEvent.type) && logDetails.mapNumber==2 && parsedEvent.timestamp>2920 && parsedEvent.timestamp<2930 && event.includes('gyro')){
+    //     console.log(getMinute(parseFloat(parsedEvent.timestamp) - logDetails.maps[logDetails.mapNumber].gameStartTimestamp))
+    //     console.log(parsedEvent)
+    // }
+    // if(event.includes('gyro')) {
+    //     console.log(event)
+    // }
 
     addToEventCounter(logDetails, parsedEvent)
 }
@@ -137,6 +149,7 @@ function getMinute(timestamp){
 
 function processGameStart(logDetails, parsedEvent){
     let currentTime = parseFloat(parsedEvent.timestamp)
+
     if(logDetails.maps[logDetails.mapNumber].gameStartTimestamp != currentTime){
         logDetails.mapNumber ++
         logDetails.maps[logDetails.mapNumber] = {
@@ -161,9 +174,8 @@ function processPlayerDeath(logDetails, parsedEvent){
     logDetails.maps[currentMap].players[attacker].kills.push(minute)
 
     // Multikill happens here
-    if(currentTime - logDetails.maps[currentMap].players[attacker].lastKill <=17){
+    if(currentTime - logDetails.maps[currentMap].players[attacker].lastKill < 18){
         logDetails.maps[currentMap].players[attacker].multikill ++
-        if (attacker == "npc_dota_neutral_granite_golem"){console.log(parsedEvent)}
         logDetails.maps[currentMap].players[attacker].multikills.push(minute)
         logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + logDetails.maps[currentMap].players[attacker].multikill + "x multikill"
         //console.log(currentMap + ": " + attacker.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[attacker].multikill)
@@ -172,6 +184,17 @@ function processPlayerDeath(logDetails, parsedEvent){
         logDetails.maps[currentMap].players[attacker].multikill = 1
     }
     logDetails.maps[currentMap].players[attacker].lastKill = currentTime
+}
+
+function processMultikills(logDetails, parsedEvent){
+
+    let currentTime = parseFloat(parsedEvent.timestamp)
+    let attacker = parsedEvent.attacker_name
+    let currentMap = logDetails.mapNumber
+
+    let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
+    logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + parsedEvent.value + "x multikill"
+
 }
 
 function addToEventCounter(logDetails, parsedEvent){
@@ -188,16 +211,45 @@ function addToEventCounter(logDetails, parsedEvent){
     logDetails.maps[currentMap].numEvents[type][value] ++ 
 }
 // Combat Log Data Types
-// 0: "DOTA_COMBATLOG_DAMAGE"
-// 1: "DOTA_COMBATLOG_HEAL"
-// 2: "DOTA_COMBATLOG_MODIFIER_ADD"
-// 3: "DOTA_COMBATLOG_MODIFIER_REMOVE"
-// 4: "DOTA_COMBATLOG_DEATH"
-// 5: "DOTA_COMBATLOG_ABILITY"
-// 6: "DOTA_COMBATLOG_ITEM"
-// 7: "DOTA_COMBATLOG_LOCATION"
-// 8: "DOTA_COMBATLOG_GOLD"
-// 9: "DOTA_COMBATLOG_GAME_STATE"
+// -1: "DOTA_COMBATLOG_INVALID"
+// 0:  "DOTA_COMBATLOG_DAMAGE"
+// 1:  "DOTA_COMBATLOG_HEAL"
+// 2:  "DOTA_COMBATLOG_MODIFIER_ADD"
+// 3:  "DOTA_COMBATLOG_MODIFIER_REMOVE"
+// 4:  "DOTA_COMBATLOG_DEATH"
+// 5:  "DOTA_COMBATLOG_ABILITY"
+// 6:  "DOTA_COMBATLOG_ITEM"
+// 7:  "DOTA_COMBATLOG_LOCATION"
+// 8:  "DOTA_COMBATLOG_GOLD"
+// 9:  "DOTA_COMBATLOG_GAME_STATE"
 // 10: "DOTA_COMBATLOG_XP"
 // 11: "DOTA_COMBATLOG_PURCHASE"
 // 12: "DOTA_COMBATLOG_BUYBACK"
+// 13: "DOTA_COMBATLOG_ABILITY_TRIGGER"
+// 14: "DOTA_COMBATLOG_PLAYERSTATS" 
+// 15: "DOTA_COMBATLOG_MULTIKILL"
+// 16: "DOTA_COMBATLOG_KILLSTREAK"
+// 17: "DOTA_COMBATLOG_TEAM_BUILDING_KILL"
+// 18: "DOTA_COMBATLOG_FIRST_BLOOD"
+// 19: "DOTA_COMBATLOG_MODIFIER_REFRESH"
+// 20: "DOTA_COMBATLOG_NEUTRAL_CAMP_STACK"
+// 21: "DOTA_COMBATLOG_PICKUP_RUNE"
+// 22: "DOTA_COMBATLOG_REVEALED_INVISIBLE"
+// 23: "DOTA_COMBATLOG_HERO_SAVED"
+// 24: "DOTA_COMBATLOG_MANA_RESTORED"
+// 25: "DOTA_COMBATLOG_HERO_LEVELUP"
+// 26: "DOTA_COMBATLOG_BOTTLE_HEAL_ALLY"
+// 27: "DOTA_COMBATLOG_ENDGAME_STATS"
+// 28: "DOTA_COMBATLOG_INTERRUPT_CHANNEL"
+// 29: "DOTA_COMBATLOG_ALLIED_GOLD"
+// 30: "DOTA_COMBATLOG_AEGIS_TAKEN"
+// 31: "DOTA_COMBATLOG_MANA_DAMAGE"
+// 32: "DOTA_COMBATLOG_PHYSICAL_DAMAGE_PREVENTED"
+// 33: "DOTA_COMBATLOG_UNIT_SUMMONED"
+// 34: "DOTA_COMBATLOG_ATTACK_EVADE"
+// 35: "DOTA_COMBATLOG_TREE_CUT"
+// 36: "DOTA_COMBATLOG_SUCCESSFUL_SCAN"
+// 37: "DOTA_COMBATLOG_END_KILLSTREAK"
+// 38: "DOTA_COMBATLOG_BLOODSTONE_CHARGE"
+// 39: "DOTA_COMBATLOG_CRITICAL_DAMAGE"
+// 40: "DOTA_COMBATLOG_SPELL_ABSORB"
