@@ -92,9 +92,6 @@ async function scanFile(file){
     
             let content = lineAsJson.content["combatLogsUpdate"];
             if(content && content.length!=0) {
-                
-                let correctedString = content[0].replace(RegExp('\r\n', 'g') , '",').replace(RegExp('\t', 'g'), '"').replace(RegExp(': ', 'g'),'\" : \"').replace('\",','').replace(',}','}')
-                processEvent(correctedString, logDetails)
                 content.forEach(element => {
                     let correctedString = element.replace(RegExp('\r\n', 'g') , '",').replace(RegExp('\t', 'g'), '"').replace(RegExp(': ', 'g'),'\" : \"').replace('\",','').replace(',}','}')
                     processEvent(correctedString, logDetails)
