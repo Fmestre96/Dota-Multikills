@@ -114,6 +114,7 @@ function processEvent(event, logDetails){
         logDetails.gameStartTimestamp = currentTime
         logDetails.mapNumber ++
         logDetails.multikills[logDetails.mapNumber] = {}
+        logDetails.players = {}
     }
 
     if(parsedEvent.type=="4" && parsedEvent.target.includes("hero")){
@@ -124,6 +125,7 @@ function processEvent(event, logDetails){
         if(currentTime - logDetails.players[parsedEvent.attacker_name].lastKill < 18){
             let minute = getMinute(currentTime - logDetails.gameStartTimestamp)
             logDetails.players[parsedEvent.attacker_name].multikill ++
+            
             logDetails.multikills[logDetails.mapNumber][minute] = parsedEvent.attacker_name.replace("npc_dota_hero_","") + " got a " + logDetails.players[parsedEvent.attacker_name].multikill + "x multikill"
             //console.log(minute + ": " + parsedEvent.attacker_name.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[parsedEvent.attacker_name].multikill)
         }
