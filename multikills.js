@@ -76,7 +76,7 @@ async function scanFile(file){
     }
     console.log(file)
     let text = await readFileContent(file)
-    lines = text.split("\n")
+    lines = text.split(/\r?\n/)
     lines.forEach(line => {
         try{
             let startIndex = line.indexOf('{');
