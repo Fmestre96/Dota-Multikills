@@ -253,3 +253,5 @@ function addToEventCounter(logDetails, parsedEvent){
 // 38: "DOTA_COMBATLOG_BLOODSTONE_CHARGE"
 // 39: "DOTA_COMBATLOG_CRITICAL_DAMAGE"
 // 40: "DOTA_COMBATLOG_SPELL_ABSORB"
+
+//https://sportdocbox.com/Olympics/68925293-Dota2-documentation-release.html
