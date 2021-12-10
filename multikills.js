@@ -111,24 +111,17 @@ function processEvent(event, logDetails){
     let type = parsedEvent.type
     let value = parsedEvent.value
     let target = parsedEvent.target
-    
-    
+
     // GameStart
     if (type=="9" && value == "5"){
         processGameStart(logDetails, parsedEvent)
     }
+    //Player Death
     else if(type=="4" && target.includes("hero")){
         processPlayerDeath(logDetails, parsedEvent)
     }
-    let currentMap = logDetails.mapNumber
-    //Event Counters here
-    if(!logDetails.maps[currentMap].numEvents[type]){
-        logDetails.maps[currentMap].numEvents[type] = {}
-    }
-    if(!logDetails.maps[currentMap].numEvents[type][value]){
-        logDetails.maps[currentMap].numEvents[type][value] = 0
-    }
-    logDetails.maps[currentMap].numEvents[type][value] ++ 
+
+    addToEventCounter(logDetails, parsedEvent)
 }
 
 function getMinute(timestamp){
@@ -181,7 +174,19 @@ function processPlayerDeath(logDetails, parsedEvent){
     logDetails.maps[currentMap].players[attacker].lastKill = currentTime
 }
 
-
+function addToEventCounter(logDetails, parsedEvent){
+    let type = parsedEvent.type
+    let value = parsedEvent.value
+    let currentMap = logDetails.mapNumber
+    //Event Counters here
+    if(!logDetails.maps[currentMap].numEvents[type]){
+        logDetails.maps[currentMap].numEvents[type] = {}
+    }
+    if(!logDetails.maps[currentMap].numEvents[type][value]){
+        logDetails.maps[currentMap].numEvents[type][value] = 0
+    }
+    logDetails.maps[currentMap].numEvents[type][value] ++ 
+}
 // Combat Log Data Types
 // 0: "DOTA_COMBATLOG_DAMAGE"
 // 1: "DOTA_COMBATLOG_HEAL"
