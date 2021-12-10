@@ -163,9 +163,13 @@ function processEvent(event, logDetails){
 }
 
 function getMinute(timestamp){
-    exactTime = parseFloat(timestamp) / 60
-    minute = Math.floor(exactTime)
-    seconds = Math.floor((exactTime % 1) * 60)
+    let exactTime = parseFloat(timestamp) / 60
+    let minute = Math.floor(exactTime).toString()
+    let seconds = Math.floor((exactTime % 1) * 60).toString()
+
+    if(minute.length==1)  minute = `0${minute}`
+    if(seconds.length==1)  seconds = `0${seconds}`
+
     return `${minute}:${seconds}`
 }
 
