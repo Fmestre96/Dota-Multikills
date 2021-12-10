@@ -75,6 +75,7 @@ async function scanFile(file){
                 'players':{},
                 'multikills':{},
                 'gameStartTimestamp':0,
+                'preGameStartTimestamp':-90,
             }
         },
     }
@@ -110,8 +111,8 @@ function processEvent(event, logDetails){
     
     let parsedEvent = JSON.parse(event)
 
-    // GameStart
-    if (parsedEvent.type=="9" && parsedEvent.value == "5"){
+    // GameStart (Actually Pre-game start - Game start doesnt fire every time?)
+    if (parsedEvent.type=="9" && parsedEvent.value=="4"){
         processGameStart(logDetails, parsedEvent)
     }
     //Player Death
@@ -124,8 +125,8 @@ function processEvent(event, logDetails){
         processMultikills(logDetails, parsedEvent)
     }
 
-
-    // if (!['0','1','4'].includes(parsedEvent.type) && logDetails.mapNumber==2 && parsedEvent.timestamp>2920 && parsedEvent.timestamp<2930 && event.includes('gyro')){
+    //Debugging stuff here
+    // if (parsedEvent.timestamp>535 && parsedEvent.timestamp<540 ){
     //     console.log(getMinute(parseFloat(parsedEvent.timestamp) - logDetails.maps[logDetails.mapNumber].gameStartTimestamp))
     //     console.log(parsedEvent)
     // }
@@ -156,7 +157,8 @@ function processGameStart(logDetails, parsedEvent){
             'numEvents': {},
             'players':{},
             'multikills':{},
-            'gameStartTimestamp':currentTime,
+            'preGameStartTimestamp':currentTime,
+            'gameStartTimestamp':currentTime+90,
         }   
     }
 }
