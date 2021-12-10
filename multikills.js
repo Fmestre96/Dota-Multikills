@@ -41,15 +41,15 @@ function findFile(name){
 
 function displayFileDetails(logDetails){
 
-
     console.log(logDetails)
     let target = document.getElementById("content-target")
     let bufferText = `File:  ${logDetails.file}\n\n`
 
-    for(map in logDetails.multikills){
+    for(map in logDetails.maps){
+        if (map==0) continue
         bufferText += `Map ${map}\n`
-        for (mk in logDetails.multikills[map]){
-            bufferText += `\t ${mk}:   ${logDetails.multikills[map][mk]}\n`
+        for (mk in logDetails.maps[map].multikills){
+            bufferText += `\t ${mk}:   ${logDetails.maps[map].multikills[mk]}\n`
         }
         bufferText += `\n`
     }
@@ -68,11 +68,15 @@ function readFileContent(file) {
 async function scanFile(file){
     logDetails = {
         'file': file.name,
-        'numEvents': {},
-        'players':{},
-        'multikills':{},
-        'gameStartTimestamp':0,
         'mapNumber':0,
+        'maps':{
+            0:{
+                'numEvents': {},
+                'players':{},
+                'multikills':{},
+                'gameStartTimestamp':0,
+            }
+        },
     }
     console.log(file)
     let text = await readFileContent(file)
@@ -107,40 +111,58 @@ async function scanFile(file){
 
 function processEvent(event, logDetails){
     let parsedEvent = JSON.parse(event)
+    let type = parsedEvent.type
+    let value = parsedEvent.value
     let currentTime = parseFloat(parsedEvent.timestamp)
+    let attacker = parsedEvent.attacker_name
+    let target = parsedEvent.target
+
 
     // GameStart
-    if (parsedEvent.type=="9" && parsedEvent.value == "5"){
-        logDetails.gameStartTimestamp = currentTime
-        logDetails.mapNumber ++
-        logDetails.multikills[logDetails.mapNumber] = {}
-        logDetails.players = {}
-    }
-
-    if(parsedEvent.type=="4" && parsedEvent.target.includes("hero")){
-        if (!Object.keys(logDetails.players).includes(parsedEvent.attacker_name)){
-            logDetails.players[parsedEvent.attacker_name] = {'lastKill': 0, 'multikill':0}
+    if (type=="9" && value == "5"){
+        if(logDetails.maps[logDetails.mapNumber].gameStartTimestamp != currentTime){
+            logDetails.mapNumber ++
+            logDetails.maps[logDetails.mapNumber] = {
+                'numEvents': {},
+                'players':{},
+                'multikills':{},
+                'gameStartTimestamp':currentTime,
+            }   
         }
+   
+    }
+    let currentMap = logDetails.mapNumber
+
+
+    if(type=="4" && target.includes("hero")){
+        
+        if (!Object.keys(logDetails.maps[currentMap].players).includes(attacker)){
+            logDetails.maps[currentMap].players[attacker] = {'kills':[], 'multikills':[], 'lastKill': 0, 'multikill':0}
+        }
+
+        let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
+        logDetails.maps[currentMap].players[attacker].kills.push(minute)
+
         // Multikill happens here
-        if(currentTime - logDetails.players[parsedEvent.attacker_name].lastKill < 18){
-            let minute = getMinute(currentTime - logDetails.gameStartTimestamp)
-            logDetails.players[parsedEvent.attacker_name].multikill ++
-            
-            logDetails.multikills[logDetails.mapNumber][minute] = parsedEvent.attacker_name.replace("npc_dota_hero_","") + " got a " + logDetails.players[parsedEvent.attacker_name].multikill + "x multikill"
-            //console.log(minute + ": " + parsedEvent.attacker_name.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[parsedEvent.attacker_name].multikill)
+        if(currentTime - logDetails.maps[currentMap].players[attacker].lastKill <=17){
+            logDetails.maps[currentMap].players[attacker].multikill ++
+            if (attacker == "npc_dota_neutral_granite_golem"){console.log(parsedEvent)}
+            logDetails.maps[currentMap].players[attacker].multikills.push(minute)
+            logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + logDetails.maps[currentMap].players[attacker].multikill + "x multikill"
+            //console.log(currentMap + ": " + attacker.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[attacker].multikill)
         }
         else{
-            logDetails.players[parsedEvent.attacker_name].multikill = 1
+            logDetails.maps[currentMap].players[attacker].multikill = 1
         }
-        logDetails.players[parsedEvent.attacker_name].lastKill = parseFloat(parsedEvent.timestamp)
+        logDetails.maps[currentMap].players[attacker].lastKill = currentTime
     }
-    if(!logDetails.numEvents[parsedEvent.type]){
-        logDetails.numEvents[parsedEvent.type] = {}
+    if(!logDetails.maps[currentMap].numEvents[type]){
+        logDetails.maps[currentMap].numEvents[type] = {}
     }
-    if(!logDetails.numEvents[parsedEvent.type][parsedEvent.value]){
-        logDetails.numEvents[parsedEvent.type][parsedEvent.value] = 0
+    if(!logDetails.maps[currentMap].numEvents[type][value]){
+        logDetails.maps[currentMap].numEvents[type][value] = 0
     }
-    logDetails.numEvents[parsedEvent.type][parsedEvent.value] ++ 
+    logDetails.maps[currentMap].numEvents[type][value] ++ 
 }
 
 function getMinute(timestamp){
