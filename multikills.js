@@ -49,7 +49,7 @@ function displayFileDetails(logDetails){
         if (map==0) continue
         bufferText += `Map ${map}\n`
         for (mk in logDetails.maps[map].multikills){
-            bufferText += `\t ${mk}:   ${logDetails.maps[map].multikills[mk]}\n`
+            bufferText += `\t${logDetails.maps[map].multikills[mk]}\n`
         }
         bufferText += `\n`
     }
@@ -152,7 +152,7 @@ function processGameStart(logDetails, parsedEvent){
         logDetails.maps[logDetails.mapNumber] = {
             'numEvents': {},
             'players':{},
-            'multikills':{},
+            'multikills':[],
             'preGameStartTimestamp':currentTime,
             'gameStartTimestamp':currentTime+90,
         }   
@@ -171,11 +171,11 @@ function processPlayerDeath(logDetails, parsedEvent){
     let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
     logDetails.maps[currentMap].players[attacker].kills.push(minute)
 
-    // Multikill happens here
+    // Register multikill here
     if(currentTime - logDetails.maps[currentMap].players[attacker].lastKill < 18){
         logDetails.maps[currentMap].players[attacker].multikill ++
         logDetails.maps[currentMap].players[attacker].multikills.push(minute)
-        logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + logDetails.maps[currentMap].players[attacker].multikill + "x multikill"
+        //logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + logDetails.maps[currentMap].players[attacker].multikill + "x multikill"
         //console.log(currentMap + ": " + attacker.replace("npc_dota_hero_","") + " is on a multikill " + logDetails.players[attacker].multikill)
     }
     else{
@@ -191,7 +191,7 @@ function processMultikills(logDetails, parsedEvent){
     let currentMap = logDetails.mapNumber
 
     let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
-    logDetails.maps[currentMap].multikills[minute] = attacker.replace("npc_dota_hero_","") + " got a " + parsedEvent.value + "x multikill"
+    logDetails.maps[currentMap].multikills.push(`${minute}:  ${attacker.replace("npc_dota_hero_","")} got a ${parsedEvent.value}x multikill`)
 
 }
 
