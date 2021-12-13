@@ -82,27 +82,23 @@ async function scanFile(file){
     console.log(file)
     let text = await readFileContent(file)
     lines = text.split(/\r?\n/)
-    lines.forEach(line => {
-        try{
-            let startIndex = line.indexOf('{');
-            if (startIndex > 0) {
-                startIndex = startIndex - 1
-            }
-            const lineAsJson = JSON.parse(line.substring(startIndex));
-            if (lineAsJson["type"] === 'gsk' || lineAsJson["type"] === 'hltvDraft') return;
-    
-            let content = lineAsJson.content["combatLogsUpdate"];
-            if(content && content.length!=0) {
-                content.forEach(element => {
-                    let correctedString = element.replace(RegExp('\r\n', 'g') , '",').replace(RegExp('\t', 'g'), '"').replace(RegExp(': ', 'g'),'\" : \"').replace('\",','').replace(',}','}')
-                    processEvent(correctedString, logDetails)
-                });
-            }
+    for(let i = 0; i < lines.length-1; i++){
+        line = lines[i]
+        let startIndex = line.indexOf('{');
+        if (startIndex > 0) {
+            startIndex = startIndex - 1
         }
-        catch(e){
-            console.log("Skipped")
+        const lineAsJson = JSON.parse(line.substring(startIndex));
+        if (lineAsJson["type"] === 'gsk' || lineAsJson["type"] === 'hltvDraft') return;
+
+        let content = lineAsJson.content["combatLogsUpdate"];
+        if(content && content.length!=0) {
+            content.forEach(element => {
+                let correctedString = element.replace(RegExp('\r\n', 'g') , '",').replace(RegExp('\t', 'g'), '"').replace(RegExp(': ', 'g'),'\" : \"').replace('\",','').replace(',}','}')
+                processEvent(correctedString, logDetails)
+            });
         }
-    });
+    }
     displayFileDetails(logDetails)
 }
 
