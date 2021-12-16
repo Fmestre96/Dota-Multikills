@@ -1,3 +1,7 @@
+const fieldsToWatch = ['kills','assists']
+const displayMultikills = false
+const displayGSIFields = true
+
 function listFiles(event) {
     const input = document.getElementById("input-file")
     if ('files' in input && input.files.length > 0) {
@@ -43,15 +47,26 @@ function displayFileDetails(logDetails){
 
     console.log(logDetails)
     let target = document.getElementById("content-target")
-    let bufferText = `File:  ${logDetails.file}\n\n`
-
-    for(map in logDetails.maps){
-        if (map==0) continue
-        bufferText += `Map ${map}\n`
-        for (mk in logDetails.maps[map].multikills){
-            bufferText += `\t${logDetails.maps[map].multikills[mk]}\n`
+    let bufferText = `File:  ${logDetails.file}\nSeries:  ${logDetails.seriesId} \n\n`
+    if(displayMultikills){
+        for(map in logDetails.maps){
+            if (map==0) continue
+            bufferText += `Map ${map}\n`
+            for (mk in logDetails.maps[map].multikills){
+                bufferText += `\t${logDetails.maps[map].multikills[mk]}\n`
+            }
+            bufferText += `\n`
         }
-        bufferText += `\n`
+    }
+    if(displayGSIFields){
+        for(map in logDetails.maps){
+            if (map==0) continue
+            bufferText += `Map ${map}\n`
+            for (mk in logDetails.maps[map].detectedFieldChanges){
+                bufferText += `\t${logDetails.maps[map].detectedFieldChanges[mk]}\n`
+            }
+            bufferText += `\n`
+        }
     }
     target.value = bufferText
 }
@@ -69,15 +84,19 @@ async function scanFile(file){
     logDetails = {
         'file': file.name,
         'mapNumber':0,
+        'seriesId':'',
         'maps':{
             0:{
                 'numEvents': {},
+                'gsiEvents':0,
+                'lastGSIEvent':{},
                 'players':{},
-                'multikills':{},
+                'multikills':[],
                 'gameStartTimestamp':0,
                 'preGameStartTimestamp':-90,
             }
         },
+        'seriesStatus':0, // 0 = Not started || 1 = Ongoing
     }
     console.log(file)
     let text = await readFileContent(file)
@@ -91,6 +110,10 @@ async function scanFile(file){
         const lineAsJson = JSON.parse(line.substring(startIndex));
         if (lineAsJson["type"] === 'gsk' || lineAsJson["type"] === 'hltvDraft') return;
 
+
+        if(logDetails.seriesId == ''){
+            logDetails.seriesId = lineAsJson.seriesId
+        }
         let content = lineAsJson.content["combatLogsUpdate"];
         if(content && content.length!=0) {
             content.forEach(element => {
@@ -98,10 +121,37 @@ async function scanFile(file){
                 processEvent(correctedString, logDetails)
             });
         }
+        //If there is a game ongoing, process events
+        if(logDetails.seriesStatus){
+            let gsi = lineAsJson.content["gsiUpdate"]
+            let parsedGSI = JSON.parse(gsi)
+            processGSIdiff(logDetails.maps[logDetails.mapNumber].lastGSIEvent, parsedGSI, logDetails)
+            logDetails.maps[logDetails.mapNumber].gsiEvents ++
+            logDetails.maps[logDetails.mapNumber].lastGSIEvent = parsedGSI
+        }
     }
     displayFileDetails(logDetails)
 }
 
+
+function processGSIdiff(oldGSI, newGSI, logDetails) {
+    if(Object.keys(oldGSI).length==0) return 
+    for(f in fieldsToWatch){
+        for (let i = 2; i <=3; i++){
+            let team = `team${i}`
+            let playerCount = (i - 2) * 5
+            for(let j = playerCount; j < playerCount+5; j++){
+                let player = `player${j}`
+                if (newGSI.player[team][player][fieldsToWatch[f]] != oldGSI.player[team][player][fieldsToWatch[f]]){
+                    let minute = getMinute(newGSI.map.clock_time)
+                    logDetails.maps[logDetails.mapNumber].detectedFieldChanges.push(`${minute}:  ${fieldsToWatch[f]} detected by ${newGSI.player[team][player].name}`)
+                    //console.log(`${fieldsToWatch[f]} detected by ${newGSI.player[team][player].name}`)
+                }
+
+            }
+        }
+    }
+}
 
 function processEvent(event, logDetails){
     
@@ -111,24 +161,23 @@ function processEvent(event, logDetails){
     if (parsedEvent.type=="9" && parsedEvent.value=="4"){
         processGameStart(logDetails, parsedEvent)
     }
-    //Player Death
-    // else if(parsedEvent.type=="4" && parsedEvent.target.includes("hero")){
-    //     processPlayerDeath(logDetails, parsedEvent)
-    // }
-
-    //Multikills
-    else if (parsedEvent.type=="15"){
-        processMultikills(logDetails, parsedEvent)
+    else if (parsedEvent.type=="9" && parsedEvent.value=="6"){
+        processGameEnd(logDetails, parsedEvent)
     }
 
-    //Debugging stuff here
-    // if (parsedEvent.timestamp>535 && parsedEvent.timestamp<540 ){
-    //     console.log(getMinute(parseFloat(parsedEvent.timestamp) - logDetails.maps[logDetails.mapNumber].gameStartTimestamp))
-    //     console.log(parsedEvent)
-    // }
-    // if(event.includes('gyro')) {
-    //     console.log(event)
-    // }
+
+    //If there is a game ongoing, process events
+    if(logDetails.seriesStatus){
+        //Multikills
+        if (parsedEvent.type=="15"){
+            processMultikills(logDetails, parsedEvent)
+        }
+        //Player Death
+        // else if(parsedEvent.type=="4" && parsedEvent.target.includes("hero")){
+        //     processPlayerDeath(logDetails, parsedEvent)
+        // }
+    }
+
 
     addToEventCounter(logDetails, parsedEvent)
 }
@@ -155,9 +204,18 @@ function processGameStart(logDetails, parsedEvent){
             'multikills':[],
             'preGameStartTimestamp':currentTime,
             'gameStartTimestamp':currentTime+90,
+            'gsiEvents':0,
+            'lastGSIEvent':{},
+            'detectedFieldChanges':[]
         }   
     }
+    logDetails.seriesStatus = 1
 }
+
+function processGameEnd(logDetails, parsedEvent){
+    logDetails.seriesStatus = 0
+}
+
 
 function processPlayerDeath(logDetails, parsedEvent){
     let currentTime = parseFloat(parsedEvent.timestamp)
