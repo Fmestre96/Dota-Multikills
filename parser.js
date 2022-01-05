@@ -1,6 +1,7 @@
-const fieldsToWatch = ['kills','assists']
+const fieldsToWatch = ['assists']
 const displayMultikills = false
-const displayGSIFields = true
+const displayChangesGSIFields = false
+const displayGSIFieldsAtEnd = true
 
 function listFiles(event) {
     const input = document.getElementById("input-file")
@@ -48,25 +49,27 @@ function displayFileDetails(logDetails){
     console.log(logDetails)
     let target = document.getElementById("content-target")
     let bufferText = `File:  ${logDetails.file}\nSeries:  ${logDetails.seriesId} \n\n`
-    if(displayMultikills){
-        for(map in logDetails.maps){
-            if (map==0) continue
-            bufferText += `Map ${map}\n`
+
+    for(map in logDetails.maps){
+        if (map==0) continue
+        bufferText += `Map ${map}\n`
+
+        if(displayMultikills){
             for (mk in logDetails.maps[map].multikills){
                 bufferText += `\t${logDetails.maps[map].multikills[mk]}\n`
             }
-            bufferText += `\n`
         }
-    }
-    if(displayGSIFields){
-        for(map in logDetails.maps){
-            if (map==0) continue
-            bufferText += `Map ${map}\n`
+        if(displayChangesGSIFields){
             for (mk in logDetails.maps[map].detectedFieldChanges){
                 bufferText += `\t${logDetails.maps[map].detectedFieldChanges[mk]}\n`
             }
-            bufferText += `\n`
         }
+        if(displayGSIFieldsAtEnd){
+            for (mk in logDetails.maps[map].fieldsToWatch){
+                bufferText += `\t${logDetails.maps[map].fieldsToWatch[mk]}\n`
+            }
+        }
+        bufferText += `\n`
     }
     target.value = bufferText
 }
@@ -145,7 +148,7 @@ function processGSIdiff(oldGSI, newGSI, logDetails) {
                 if (newGSI.player[team][player][fieldsToWatch[f]] != oldGSI.player[team][player][fieldsToWatch[f]]){
                     let minute = getMinute(newGSI.map.clock_time)
                     logDetails.maps[logDetails.mapNumber].detectedFieldChanges.push(`${minute}:  ${fieldsToWatch[f]} detected by ${newGSI.player[team][player].name}`)
-                    //console.log(`${fieldsToWatch[f]} detected by ${newGSI.player[team][player].name}`)
+                    //console.log(newGSI.player[team][player])
                 }
 
             }
@@ -172,6 +175,13 @@ function processEvent(event, logDetails){
         if (parsedEvent.type=="15"){
             processMultikills(logDetails, parsedEvent)
         }
+        else if (parsedEvent.type=="8" && parsedEvent.gold_reason=="12"){
+            processPlayerAssist(logDetails, parsedEvent)
+        }
+        // else if (parsedEvent.type=="29"){
+        //     console.log(parsedEvent)
+        // }
+
         //Player Death
         // else if(parsedEvent.type=="4" && parsedEvent.target.includes("hero")){
         //     processPlayerDeath(logDetails, parsedEvent)
@@ -206,14 +216,46 @@ function processGameStart(logDetails, parsedEvent){
             'gameStartTimestamp':currentTime+90,
             'gsiEvents':0,
             'lastGSIEvent':{},
-            'detectedFieldChanges':[]
+            'detectedFieldChanges':[],
+            'fieldsToWatch':[],
         }   
     }
     logDetails.seriesStatus = 1
 }
 
 function processGameEnd(logDetails, parsedEvent){
+    let currentMap = logDetails.mapNumber
+    let lastGSIEvent = logDetails.maps[logDetails.mapNumber].lastGSIEvent
+    console.log(lastGSIEvent)
     logDetails.seriesStatus = 0
+    for(f in fieldsToWatch){
+        for (let i = 2; i <=3; i++){
+            let team = `team${i}`
+            let playerCount = (i - 2) * 5
+            for(let j = playerCount; j < playerCount+5; j++){
+                let player = `player${j}`
+                let hero = lastGSIEvent.hero[team][player].name
+                if(logDetails.maps[currentMap].players[hero] && logDetails.maps[currentMap].players[hero][fieldsToWatch[f]]){
+                    logDetails.maps[currentMap].fieldsToWatch.push(`${hero}: ${lastGSIEvent.player[team][player][fieldsToWatch[f]]} (GSI) vs ${logDetails.maps[currentMap].players[hero][fieldsToWatch[f]]} (logs) `)
+                }
+                
+            }
+        }
+    }
+}
+
+function processPlayerAssist(logDetails, parsedEvent){
+    let attacker = parsedEvent.target
+    let currentMap = logDetails.mapNumber
+    if (attacker == "npc_dota_hero_kunkka"){
+        let currentTime = parseFloat(parsedEvent.timestamp)
+        let minute = getMinute(currentTime - logDetails.maps[currentMap].gameStartTimestamp)
+        console.log(minute)
+    }
+    if (!Object.keys(logDetails.maps[currentMap].players).includes(attacker)){
+        logDetails.maps[currentMap].players[attacker] = {'assists':0}
+    }
+    logDetails.maps[currentMap].players[attacker].assists += 1
 }
 
 
